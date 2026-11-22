@@ -33,17 +33,27 @@ class RoleViewModel @Inject constructor(
     }
 
     private fun resolve() {
-        if (sessionStore.profileType == "CLIENT") {
-            _role.value = UserRole.CLIENT
-            return
-        }
-        if (sessionStore.profileType != "BUSINESS") {
+        val token = sessionStore.token
+        if (token.isNullOrBlank()) {
             _role.value = UserRole.CLIENT
             return
         }
 
-        val token = sessionStore.token
-        if (token.isNullOrBlank()) {
+        val profileType = sessionStore.profileType
+
+        // Un usuario invitado a un equipo conserva el perfil CLIENT en el JWT,
+        // pero también tiene registro de empleado. En ese caso debe entrar
+        // como empleado y no como cliente.
+        if (profileType == "CLIENT") {
+            _role.value = UserRole.CLIENT
+            viewModelScope.launch {
+                val isEmployee = runCatching { getMyEmployeeUseCase(token) }.isSuccess
+                if (isEmployee) _role.value = UserRole.EMPLOYEE
+            }
+            return
+        }
+
+        if (profileType != "BUSINESS") {
             _role.value = UserRole.CLIENT
             return
         }

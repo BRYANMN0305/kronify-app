@@ -1,5 +1,8 @@
 package com.kronifyapp.ui.screens.auth
 
+import android.content.Intent
+import android.net.Uri
+import androidx.browser.customtabs.CustomTabsIntent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -31,6 +34,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -50,6 +55,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kronifyapp.R
+import com.kronifyapp.data.local.OAuthResultBus
 import com.kronifyapp.ui.components.AuroraBackground
 import com.kronifyapp.ui.components.AnimatedStatusMessage
 import com.kronifyapp.ui.components.CheckGlyph
@@ -58,7 +64,6 @@ import com.kronifyapp.ui.components.GoogleGlyph
 import com.kronifyapp.ui.components.KronifyTextField
 import com.kronifyapp.ui.components.MailGlyph
 import com.kronifyapp.ui.components.MicrosoftGlyph
-import com.kronifyapp.ui.components.OAuthWebView
 import com.kronifyapp.ui.components.PrimaryButton
 import com.kronifyapp.ui.components.SocialButton
 import com.kronifyapp.ui.theme.Acero1
@@ -83,11 +88,11 @@ fun LoginScreen(
     viewModel: AuthViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var keepSession by rememberSaveable { mutableStateOf(true) }
-    var oauthUrl by rememberSaveable { mutableStateOf<String?>(null) }
-    var oauthProviderTitle by rememberSaveable { mutableStateOf("") }
+    var oauthPendingProvider by rememberSaveable { mutableStateOf<String?>(null) }
     var oauthError by rememberSaveable { mutableStateOf<String?>(null) }
 
     var emailError by rememberSaveable { mutableStateOf<String?>(null) }
@@ -96,6 +101,19 @@ fun LoginScreen(
 
     androidx.compose.runtime.LaunchedEffect(state.error) {
         state.error?.let { if (!state.needsOAuthProfile) loginError = it }
+    }
+
+    val oauthResult by OAuthResultBus.result.collectAsState()
+    LaunchedEffect(oauthResult) {
+        val result = oauthResult ?: return@LaunchedEffect
+        OAuthResultBus.consume()
+        oauthPendingProvider = null
+        if (result.isError || result.token.isNullOrBlank()) {
+            oauthError = "No se pudo completar el inicio de sesión con el proveedor. Inténtalo de nuevo."
+        } else {
+            oauthError = null
+            viewModel.handleOAuthToken(result.token.orEmpty(), result.newProfile)
+        }
     }
 
     var navigated by rememberSaveable { mutableStateOf(false) }
@@ -111,22 +129,29 @@ fun LoginScreen(
         }
     }
 
-    if (oauthUrl != null) {
-        OAuthWebView(
-            url = oauthUrl.orEmpty(),
-            title = "Continuar con $oauthProviderTitle",
-            onSuccess = { token, newProfile ->
-                oauthUrl = null
-                oauthError = null
-                viewModel.handleOAuthToken(token, newProfile)
-            },
-            onError = { message ->
-                oauthUrl = null
-                oauthError = message
-            },
-            onDismiss = { oauthUrl = null },
-        )
-        return
+    fun openOAuth(providerKey: String, providerTitle: String) {
+        oauthError = null
+        oauthPendingProvider = providerTitle
+        val url = "https://kronify-apis.duckdns.org/oauth2/mobile/$providerKey"
+        runCatching {
+            val intent = CustomTabsIntent.Builder()
+                .setShowTitle(true)
+                .build()
+            intent.launchUrl(context, Uri.parse(url))
+        }.onFailure {
+            oauthPendingProvider = null
+            // Si no hay un navegador compatible se intenta con cualquier
+            // navegador disponible mediante un Intent normal.
+            runCatching {
+                context.startActivity(
+                    Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    },
+                )
+            }.onFailure {
+                oauthError = "No encontramos un navegador para completar el inicio de sesión."
+            }
+        }
     }
 
     AuroraBackground {
@@ -267,23 +292,27 @@ fun LoginScreen(
                 ) {
                     SocialButton(
                         text = "Google",
-                        onClick = {
-                            oauthError = null
-                            oauthProviderTitle = "Google"
-                            oauthUrl = "https://kronify-apis.duckdns.org/oauth2/authorization/google"
-                        },
+                        onClick = { openOAuth("google", "Google") },
                         modifier = Modifier.weight(1f),
                         leading = { GoogleGlyph() },
                     )
                     SocialButton(
                         text = "Microsoft",
-                        onClick = {
-                            oauthError = null
-                            oauthProviderTitle = "Microsoft"
-                            oauthUrl = "https://kronify-apis.duckdns.org/oauth2/authorization/azure"
-                        },
+                        onClick = { openOAuth("azure", "Microsoft") },
                         modifier = Modifier.weight(1f),
                         leading = { MicrosoftGlyph() },
+                    )
+                }
+
+                oauthPendingProvider?.let { provider ->
+                    Text(
+                        text = "Completa el inicio de sesión con $provider en el navegador. Al terminar volverás a Kronify.",
+                        color = TextTertiary,
+                        fontSize = 11.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 10.dp),
                     )
                 }
 

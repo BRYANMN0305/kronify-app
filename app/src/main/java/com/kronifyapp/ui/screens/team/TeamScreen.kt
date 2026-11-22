@@ -165,7 +165,7 @@ fun TeamScreen(
                         EmptyCard("Aún no hay empleados activos en tu negocio.")
                     }
                 } else {
-                    items(state.employees, key = { it.employeeId }) { employee ->
+                    items(state.employees, key = { "employee-${it.employeeId}" }) { employee ->
                         EmployeeRowItem(
                             employee = employee,
                             permissionBusyId = state.permissionBusyId,
@@ -185,7 +185,7 @@ fun TeamScreen(
                         EmptyCard("No hay invitaciones registradas.")
                     }
                 } else {
-                    items(state.invitations, key = { it.invitationId }) { invitation ->
+                    items(state.invitations, key = { "invitation-${it.invitationId}" }) { invitation ->
                         InvitationRowItem(
                             invitation = invitation,
                             busyId = state.busyInvitationId,
