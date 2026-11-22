@@ -2,6 +2,8 @@ package com.kronifyapp.data.remote.request
 
 data class LoginRequest(val email: String, val password: String)
 
+data class OAuthProfileRequest(val profileType: String)
+
 data class UserRegisterRequest(
     val name: String,
     val lastName: String,

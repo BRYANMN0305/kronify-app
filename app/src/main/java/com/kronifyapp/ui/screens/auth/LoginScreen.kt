@@ -23,11 +23,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,15 +51,18 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kronifyapp.R
 import com.kronifyapp.ui.components.AuroraBackground
+import com.kronifyapp.ui.components.AnimatedStatusMessage
 import com.kronifyapp.ui.components.CheckGlyph
 import com.kronifyapp.ui.components.GlassSurface
 import com.kronifyapp.ui.components.GoogleGlyph
 import com.kronifyapp.ui.components.KronifyTextField
 import com.kronifyapp.ui.components.MailGlyph
 import com.kronifyapp.ui.components.MicrosoftGlyph
+import com.kronifyapp.ui.components.OAuthWebView
 import com.kronifyapp.ui.components.PrimaryButton
 import com.kronifyapp.ui.components.SocialButton
 import com.kronifyapp.ui.theme.Acero1
+import com.kronifyapp.ui.theme.DangerRed
 import com.kronifyapp.ui.theme.Neon
 import com.kronifyapp.ui.theme.StrokeStrong
 import com.kronifyapp.ui.theme.StrokeSubtle
@@ -81,15 +86,19 @@ fun LoginScreen(
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var keepSession by rememberSaveable { mutableStateOf(true) }
+    var oauthUrl by rememberSaveable { mutableStateOf<String?>(null) }
+    var oauthProviderTitle by rememberSaveable { mutableStateOf("") }
+    var oauthError by rememberSaveable { mutableStateOf<String?>(null) }
 
     var emailError by rememberSaveable { mutableStateOf<String?>(null) }
     var passwordError by rememberSaveable { mutableStateOf<String?>(null) }
+    var loginError by rememberSaveable { mutableStateOf<String?>(null) }
 
     androidx.compose.runtime.LaunchedEffect(state.error) {
-        state.error?.let { emailError = it }
+        state.error?.let { if (!state.needsOAuthProfile) loginError = it }
     }
 
-    var navigated by remember { mutableStateOf(false) }
+    var navigated by rememberSaveable { mutableStateOf(false) }
     androidx.compose.runtime.LaunchedEffect(state.token, navigated) {
         if (!state.token.isNullOrBlank() && !navigated) {
             navigated = true
@@ -100,6 +109,24 @@ fun LoginScreen(
                 state.onboardingStep,
             )
         }
+    }
+
+    if (oauthUrl != null) {
+        OAuthWebView(
+            url = oauthUrl.orEmpty(),
+            title = "Continuar con $oauthProviderTitle",
+            onSuccess = { token, newProfile ->
+                oauthUrl = null
+                oauthError = null
+                viewModel.handleOAuthToken(token, newProfile)
+            },
+            onError = { message ->
+                oauthUrl = null
+                oauthError = message
+            },
+            onDismiss = { oauthUrl = null },
+        )
+        return
     }
 
     AuroraBackground {
@@ -124,6 +151,7 @@ fun LoginScreen(
                     onValueChange = {
                         email = it
                         if (emailError != null) emailError = null
+                        if (loginError != null) loginError = null
                     },
                     label = "Correo",
                     placeholder = "Correo electrónico",
@@ -139,6 +167,7 @@ fun LoginScreen(
                     onValueChange = {
                         password = it
                         if (passwordError != null) passwordError = null
+                        if (loginError != null) loginError = null
                     },
                     label = "Contraseña",
                     placeholder = "Tu contraseña",
@@ -177,6 +206,7 @@ fun LoginScreen(
                     onClick = {
                         val emailTrim = email.trim()
                         val passwordTrim = password.trim()
+                        loginError = null
 
                         emailError = if (emailTrim.isBlank()) {
                             "El correo es obligatorio"
@@ -198,6 +228,11 @@ fun LoginScreen(
                             viewModel.login(emailTrim, passwordTrim)
                         }
                     },
+                )
+
+                AnimatedStatusMessage(
+                    text = loginError,
+                    isError = true,
                 )
 
                 Row(
@@ -225,7 +260,6 @@ fun LoginScreen(
                     )
                 }
 
-                val context = androidx.compose.ui.platform.LocalContext.current
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -234,14 +268,9 @@ fun LoginScreen(
                     SocialButton(
                         text = "Google",
                         onClick = {
-                            val url = "https://kronify-apis.duckdns.org/oauth2/authorization/google"
-                            try {
-                                val intent = androidx.browser.customtabs.CustomTabsIntent.Builder().build()
-                                intent.launchUrl(context, android.net.Uri.parse(url))
-                            } catch (e: Exception) {
-                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
-                                context.startActivity(intent)
-                            }
+                            oauthError = null
+                            oauthProviderTitle = "Google"
+                            oauthUrl = "https://kronify-apis.duckdns.org/oauth2/authorization/google"
                         },
                         modifier = Modifier.weight(1f),
                         leading = { GoogleGlyph() },
@@ -249,24 +278,142 @@ fun LoginScreen(
                     SocialButton(
                         text = "Microsoft",
                         onClick = {
-                            val url = "https://kronify-apis.duckdns.org/oauth2/authorization/azure"
-                            try {
-                                val intent = androidx.browser.customtabs.CustomTabsIntent.Builder().build()
-                                intent.launchUrl(context, android.net.Uri.parse(url))
-                            } catch (e: Exception) {
-                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
-                                context.startActivity(intent)
-                            }
+                            oauthError = null
+                            oauthProviderTitle = "Microsoft"
+                            oauthUrl = "https://kronify-apis.duckdns.org/oauth2/authorization/azure"
                         },
                         modifier = Modifier.weight(1f),
                         leading = { MicrosoftGlyph() },
                     )
                 }
 
+                oauthError?.let { message ->
+                    Text(
+                        text = message,
+                        color = DangerRed,
+                        fontSize = 11.5.sp,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 10.dp),
+                    )
+                }
+
                 LoginFooter(onRegister = onRegister)
             }
 
+            if (state.needsOAuthProfile) {
+                OAuthProfileDialog(
+                    isLoading = state.isLoading,
+                    error = state.error,
+                    onSelect = { viewModel.chooseOAuthProfile(it) },
+                    onDismiss = { viewModel.cancelOAuthProfile() },
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun OAuthProfileDialog(
+    isLoading: Boolean,
+    error: String?,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = { if (!isLoading) onDismiss() },
+        title = {
+            Text(
+                text = "¿Cómo usarás Kronify?",
+                color = TextPrimary,
+                fontWeight = FontWeight.Bold,
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = "Elige el tipo de cuenta para continuar.",
+                    color = TextSecondary,
+                    fontSize = 13.sp,
+                )
+                Spacer(Modifier.height(16.dp))
+                OAuthProfileChoice(
+                    title = "Soy negocio",
+                    subtitle = "Agenda, equipo y servicios",
+                    enabled = !isLoading,
+                    onClick = { onSelect("BUSINESS") },
+                )
+                Spacer(Modifier.height(10.dp))
+                OAuthProfileChoice(
+                    title = "Soy cliente",
+                    subtitle = "Reserva en tus negocios favoritos",
+                    enabled = !isLoading,
+                    onClick = { onSelect("CLIENT") },
+                )
+                error?.let {
+                    Text(
+                        text = it,
+                        color = DangerRed,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                }
+                if (isLoading) {
+                    Text(
+                        text = "Guardando…",
+                        color = TextTertiary,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(top = 12.dp),
+                    )
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !isLoading) {
+                Text("Cancelar")
+            }
+        },
+        containerColor = SurfaceDeep,
+        titleContentColor = TextPrimary,
+        textContentColor = TextSecondary,
+    )
+}
+
+@Composable
+private fun OAuthProfileChoice(
+    title: String,
+    subtitle: String,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val shape = RoundedCornerShape(14.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(Color(0x142D4850))
+            .border(1.dp, StrokeStrong, shape)
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                color = TextPrimary,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = subtitle,
+                color = TextTertiary,
+                fontSize = 11.5.sp,
+                modifier = Modifier.padding(top = 2.dp),
+            )
+        }
+        Text("›", color = Neon, fontSize = 22.sp, fontWeight = FontWeight.Light)
     }
 }
 

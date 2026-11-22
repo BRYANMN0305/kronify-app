@@ -15,9 +15,16 @@ import com.kronifyapp.ui.screens.auth.OnboardingStep1Screen
 import com.kronifyapp.ui.screens.auth.OnboardingStep2Screen
 import com.kronifyapp.ui.screens.auth.OnboardingStep3Screen
 import com.kronifyapp.ui.screens.auth.RegisterScreen
+import com.kronifyapp.ui.screens.help.HelpScreen
 import com.kronifyapp.ui.screens.intro.IntroScreen
+import com.kronifyapp.ui.screens.notifications.NotificationsScreen
 import com.kronifyapp.ui.screens.welcome.WelcomeScreen
 import com.kronifyapp.ui.screens.main.MainScreen
+import com.kronifyapp.ui.screens.plan.PlanScreen
+import com.kronifyapp.ui.screens.profile.BusinessDataScreen
+import com.kronifyapp.ui.screens.profile.PersonalDataScreen
+import com.kronifyapp.ui.screens.security.SecurityScreen
+import com.kronifyapp.ui.screens.team.TeamScreen
 
 object Routes {
     const val INTRO = "intro"
@@ -25,18 +32,25 @@ object Routes {
     const val LOGIN = "login"
     const val REGISTER = "register"
     const val MAIN = "main"
+    const val BUSINESS_DATA = "business_data"
+    const val PLAN = "plan"
+    const val TEAM = "team"
+    const val SECURITY = "security"
+    const val PERSONAL_DATA = "personal_data"
+    const val HELP = "help"
+    const val NOTIFICATIONS = "notifications"
     const val ONBOARDING_1 = "onboarding_1/{token}/{userId}"
     const val ONBOARDING_2 = "onboarding_2/{token}/{userId}"
     const val ONBOARDING_3 = "onboarding_3/{token}/{userId}"
 }
 
 @Composable
-fun AppNavigation() {
+fun AppNavigation(startDestination: String = Routes.INTRO) {
     val navController = rememberNavController()
 
     NavHost(
         navController = navController,
-        startDestination = Routes.INTRO,
+        startDestination = startDestination,
         enterTransition = {
             fadeIn(tween(durationMillis = 420)) +
                 slideInVertically(tween(durationMillis = 460)) { it / 18 }
@@ -70,7 +84,8 @@ fun AppNavigation() {
                         navController.navigate("onboarding_$step/$token/$userId")
                     } else {
                         navController.navigate(Routes.MAIN) {
-                            popUpTo(Routes.LOGIN) { inclusive = true }
+                            popUpTo(navController.graph.id) { inclusive = true }
+                            launchSingleTop = true
                         }
                     }
                 },
@@ -89,7 +104,50 @@ fun AppNavigation() {
             )
         }
 
-        composable(route = Routes.MAIN) { MainScreen() }
+        composable(route = Routes.MAIN) {
+            MainScreen(
+                onOpenBusinessData = { navController.navigate(Routes.BUSINESS_DATA) },
+                onOpenPlan = { navController.navigate(Routes.PLAN) },
+                onOpenTeam = { navController.navigate(Routes.TEAM) },
+                onOpenSecurity = { navController.navigate(Routes.SECURITY) },
+                onOpenPersonalData = { navController.navigate(Routes.PERSONAL_DATA) },
+                onOpenHelp = { navController.navigate(Routes.HELP) },
+                onOpenNotifications = { navController.navigate(Routes.NOTIFICATIONS) },
+                onLogout = {
+                    navController.navigate(Routes.LOGIN) {
+                        popUpTo(Routes.MAIN) { inclusive = true }
+                    }
+                },
+            )
+        }
+
+        composable(route = Routes.BUSINESS_DATA) {
+            BusinessDataScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(route = Routes.PLAN) {
+            PlanScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(route = Routes.TEAM) {
+            TeamScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(route = Routes.SECURITY) {
+            SecurityScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(route = Routes.PERSONAL_DATA) {
+            PersonalDataScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(route = Routes.HELP) {
+            HelpScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(route = Routes.NOTIFICATIONS) {
+            NotificationsScreen(onBack = { navController.popBackStack() })
+        }
 
         composable(
             route = Routes.ONBOARDING_1,
@@ -126,7 +184,8 @@ fun AppNavigation() {
                 onBack = { navController.popBackStack() },
                 onFinish = {
                     navController.navigate(Routes.MAIN) {
-                        popUpTo(Routes.REGISTER) { inclusive = true }
+                        popUpTo(navController.graph.id) { inclusive = true }
+                        launchSingleTop = true
                     }
                 },
                 userId = backStackEntry.arguments?.getLong("userId") ?: 0L,

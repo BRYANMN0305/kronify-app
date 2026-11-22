@@ -7,6 +7,7 @@ import com.kronifyapp.data.remote.BusinessApi
 import com.kronifyapp.data.remote.UserApi
 import com.kronifyapp.data.remote.UploadApi
 import com.kronifyapp.data.remote.request.BusinessLogoUpdateRequest
+import com.kronifyapp.data.remote.request.OAuthProfileRequest
 import com.kronifyapp.domain.model.AuthSession
 import com.kronifyapp.domain.model.BusinessInput
 import com.kronifyapp.domain.model.LoginCredentials
@@ -27,6 +28,9 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun login(credentials: LoginCredentials): AuthSession = session(authApi.login(credentials.toRequest()))
 
     override suspend fun register(registration: Registration): AuthSession = session(authApi.register(registration.toRequest()))
+
+    override suspend fun selectOAuthProfile(token: String, profileType: String): AuthSession =
+        session(authApi.selectOAuthProfile("Bearer $token", OAuthProfileRequest(profileType)))
 
     override suspend fun createBusiness(token: String, business: BusinessInput) {
         businessApi.createBusiness("Bearer $token", business.toRequest())
