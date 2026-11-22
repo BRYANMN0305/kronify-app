@@ -1,7 +1,13 @@
 package com.kronifyapp.di
 
+import com.kronifyapp.data.remote.AppointmentApi
 import com.kronifyapp.data.remote.AuthApi
 import com.kronifyapp.data.remote.BusinessApi
+import com.kronifyapp.data.remote.EmployeeApi
+import com.kronifyapp.data.remote.InvitationApi
+import com.kronifyapp.data.remote.PlanApi
+import com.kronifyapp.data.remote.ReviewApi
+import com.kronifyapp.data.remote.ServiceApi
 import com.kronifyapp.data.remote.UserApi
 import com.kronifyapp.data.remote.UploadApi
 import com.google.gson.Gson
@@ -30,7 +36,7 @@ object NetworkModule {
     @Singleton
     fun provideOkHttpClient(): OkHttpClient = OkHttpClient.Builder()
         .addInterceptor(HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BODY
+            level = HttpLoggingInterceptor.Level.BASIC
         })
         .connectTimeout(30, TimeUnit.SECONDS)
         .readTimeout(30, TimeUnit.SECONDS)
@@ -57,6 +63,30 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideUserApi(retrofit: Retrofit): UserApi = retrofit.create(UserApi::class.java)
+
+    @Provides
+    @Singleton
+    fun providePlanApi(retrofit: Retrofit): PlanApi = retrofit.create(PlanApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideEmployeeApi(retrofit: Retrofit): EmployeeApi = retrofit.create(EmployeeApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideInvitationApi(retrofit: Retrofit): InvitationApi = retrofit.create(InvitationApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideReviewApi(retrofit: Retrofit): ReviewApi = retrofit.create(ReviewApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideServiceApi(retrofit: Retrofit): ServiceApi = retrofit.create(ServiceApi::class.java)
+
+    @Provides
+    @Singleton
+    fun provideAppointmentApi(retrofit: Retrofit): AppointmentApi = retrofit.create(AppointmentApi::class.java)
 
     @Provides
     @Singleton

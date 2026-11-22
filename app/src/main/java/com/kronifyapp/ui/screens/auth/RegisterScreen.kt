@@ -85,15 +85,14 @@ fun RegisterScreen(
     var fullName by rememberSaveable { mutableStateOf("") }
     var email by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
-    var acceptTerms by rememberSaveable { mutableStateOf(true) }
+    var acceptTerms by rememberSaveable { mutableStateOf(false) }
 
     var nameError by rememberSaveable { mutableStateOf<String?>(null) }
     var emailError by rememberSaveable { mutableStateOf<String?>(null) }
     var passwordError by rememberSaveable { mutableStateOf<String?>(null) }
+    var termsError by rememberSaveable { mutableStateOf<String?>(null) }
 
-    val notify: (String) -> Unit = { }
-
-    var navigated by remember { mutableStateOf(false) }
+    var navigated by rememberSaveable { mutableStateOf(false) }
     androidx.compose.runtime.LaunchedEffect(state.error) {
         state.error?.let { error ->
             if (error.contains("cuenta", ignoreCase = true) || error.contains("registr", ignoreCase = true)) {
@@ -372,7 +371,10 @@ fun RegisterScreen(
                             .clickable(
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = null,
-                                onClick = { acceptTerms = !acceptTerms },
+                                onClick = {
+                                    acceptTerms = !acceptTerms
+                                    if (termsError != null) termsError = null
+                                },
                             )
                             .padding(vertical = 4.dp),
                     ) {
@@ -394,10 +396,19 @@ fun RegisterScreen(
                             }
                         }
                         Text(
-                            text = "Acepto los términos y la política de privacidad de Kronify.",
+                            text = "Acepto los términos y la política de tratamiento de datos de Kronify.",
                             fontSize = 11.5.sp,
                             color = TextTertiary,
                             modifier = Modifier.padding(start = 10.dp),
+                        )
+                    }
+
+                    termsError?.let {
+                        Text(
+                            text = it,
+                            color = DangerRed,
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(start = 28.dp, top = 4.dp),
                         )
                     }
 
@@ -426,9 +437,17 @@ fun RegisterScreen(
                                 null
                             }
 
-                            if (!acceptTerms) {
-                                notify("Debes aceptar los términos y condiciones.")
-                            } else if (nameError == null && emailError == null && passwordError == null) {
+                            termsError = if (!acceptTerms) {
+                                "Debes aceptar la política de tratamiento de datos."
+                            } else {
+                                null
+                            }
+
+                            if (termsError == null &&
+                                nameError == null &&
+                                emailError == null &&
+                                passwordError == null
+                            ) {
                                 val parts = nameTrim.split(" ", limit = 2)
                                 val name = parts.getOrNull(0) ?: nameTrim
                                 val lastName = parts.getOrNull(1) ?: "Kronify"

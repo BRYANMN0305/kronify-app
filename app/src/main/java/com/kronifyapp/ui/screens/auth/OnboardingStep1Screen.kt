@@ -46,6 +46,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kronifyapp.ui.components.AuroraBackground
+import com.kronifyapp.ui.components.AnimatedStatusMessage
 import com.kronifyapp.ui.components.ChevronDownGlyph
 import com.kronifyapp.ui.components.GlobeGlyph
 import com.kronifyapp.ui.components.KronifyTextField
@@ -84,11 +85,12 @@ fun OnboardingStep1Screen(
     viewModel: AuthViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
 ) {
     val state by viewModel.uiState.collectAsState()
-    var businessName by rememberSaveable { mutableStateOf("Nova Barber Studio") }
-    var selectedCategory by rememberSaveable { mutableStateOf("Belleza y Estética") }
+    var businessName by rememberSaveable { mutableStateOf("") }
+    var selectedCategory by rememberSaveable { mutableStateOf("") }
     var customCategory by rememberSaveable { mutableStateOf("") }
-    var phone by rememberSaveable { mutableStateOf("+34 612 480 117") }
-    var address by rememberSaveable { mutableStateOf("Calle de Serrano 41, Madrid") }
+    var phone by rememberSaveable { mutableStateOf("") }
+    var address by rememberSaveable { mutableStateOf("") }
+    var formError by rememberSaveable { mutableStateOf<String?>(null) }
     var showCategoryDialog by remember { mutableStateOf(false) }
     val previewSlug = businessName
         .trim()
@@ -96,15 +98,13 @@ fun OnboardingStep1Screen(
         .replace(Regex("[^a-z0-9]+"), "-")
         .trim('-')
 
-    var navigated by remember { mutableStateOf(false) }
+    var navigated by rememberSaveable { mutableStateOf(false) }
     androidx.compose.runtime.LaunchedEffect(state.businessCreated, navigated) {
         if (state.businessCreated && !navigated) {
             navigated = true
             onContinue(token, userId)
         }
     }
-
-    val notify: (String) -> Unit = { }
 
     AuroraBackground {
         BoxWithConstraints(
@@ -194,7 +194,10 @@ fun OnboardingStep1Screen(
                     // Campos del formulario
                     KronifyTextField(
                         value = businessName,
-                        onValueChange = { businessName = it },
+                        onValueChange = {
+                            businessName = it
+                            if (formError != null) formError = null
+                        },
                         label = "Nombre del negocio",
                         placeholder = "Nombre del negocio",
                     )
@@ -228,10 +231,14 @@ fun OnboardingStep1Screen(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
-                                    text = if (selectedCategory == "Otro" && customCategory.isNotBlank()) customCategory else selectedCategory,
+                                    text = when {
+                                        selectedCategory.isBlank() -> "Selecciona una categoría"
+                                        selectedCategory == "Otro" && customCategory.isNotBlank() -> customCategory
+                                        else -> selectedCategory
+                                    },
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Medium,
-                                    color = TextPrimary,
+                                    color = if (selectedCategory.isBlank()) TextTertiary else TextPrimary,
                                 )
                                 ChevronDownGlyph(tint = TextTertiary)
                             }
@@ -243,7 +250,10 @@ fun OnboardingStep1Screen(
                         Spacer(Modifier.height(12.dp))
                         KronifyTextField(
                             value = customCategory,
-                            onValueChange = { customCategory = it },
+                            onValueChange = {
+                                customCategory = it
+                                if (formError != null) formError = null
+                            },
                             label = "Especifica tu categoría",
                             placeholder = "Escribe tu categoría manualmente",
                         )
@@ -253,7 +263,10 @@ fun OnboardingStep1Screen(
 
                     KronifyTextField(
                         value = phone,
-                        onValueChange = { phone = it },
+                        onValueChange = {
+                            phone = it
+                            if (formError != null) formError = null
+                        },
                         label = "Teléfono",
                         placeholder = "Teléfono de contacto",
                         keyboardType = KeyboardType.Phone,
@@ -263,7 +276,10 @@ fun OnboardingStep1Screen(
 
                     KronifyTextField(
                         value = address,
-                        onValueChange = { address = it },
+                        onValueChange = {
+                            address = it
+                            if (formError != null) formError = null
+                        },
                         label = "Dirección",
                         placeholder = "Dirección del negocio",
                     )
@@ -314,11 +330,14 @@ fun OnboardingStep1Screen(
                             val nameClean = businessName.trim()
                             val phoneClean = phone.trim()
                             val addressClean = address.trim()
-                            if (nameClean.isBlank()) {
-                                notify("Ingresa el nombre de tu negocio")
-                            } else if (selectedCategory == "Otro" && customCategory.isBlank()) {
-                                notify("Escribe tu categoría manualmente")
-                            } else {
+                            formError = when {
+                                nameClean.isBlank() -> "Ingresa el nombre de tu negocio"
+                                selectedCategory.isBlank() -> "Selecciona una categoría"
+                                selectedCategory == "Otro" && customCategory.isBlank() ->
+                                    "Escribe tu categoría manualmente"
+                                else -> null
+                            }
+                            if (formError == null) {
                                 val slug = nameClean.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-')
                                 val categoryFinal = if (selectedCategory == "Otro") customCategory else selectedCategory
                                 viewModel.createBusiness(
@@ -334,6 +353,8 @@ fun OnboardingStep1Screen(
                             }
                         },
                     )
+
+                    AnimatedStatusMessage(text = formError, isError = true)
                 }
             }
 
@@ -358,6 +379,7 @@ fun OnboardingStep1Screen(
                                         .background(if (selectedCategory == cat) Color(0x333FE1FF) else Color.Transparent)
                                         .clickable {
                                             selectedCategory = cat
+                                            formError = null
                                             showCategoryDialog = false
                                         }
                                         .padding(horizontal = 12.dp, vertical = 10.dp),

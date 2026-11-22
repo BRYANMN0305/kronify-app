@@ -10,4 +10,6 @@ data class AuthUiState(
     val successMessage: String? = null,
     val businessCreated: Boolean = false,
     val logoUploaded: Boolean = false,
+    val openingHoursSaved: Boolean = false,
+    val needsOAuthProfile: Boolean = false,
 )

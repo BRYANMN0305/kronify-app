@@ -1,5 +1,15 @@
 package com.kronifyapp.ui.screens.main
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -15,17 +25,21 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -33,6 +47,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -44,6 +59,11 @@ import com.kronifyapp.ui.theme.SurfaceDeep
 import com.kronifyapp.ui.theme.TextPrimary
 import com.kronifyapp.ui.theme.TextTertiary
 import com.kronifyapp.ui.screens.profile.ProfileScreen
+import com.kronifyapp.ui.screens.schedule.SchedulesScreen
+import com.kronifyapp.ui.screens.services.ServicesScreen
+import com.kronifyapp.ui.state.UserRole
+import com.kronifyapp.ui.viewModel.RoleViewModel
+import com.kronifyapp.ui.viewModel.SessionViewModel
 
 private data class MainDestination(
     val label: String,
@@ -52,64 +72,140 @@ private data class MainDestination(
     val detail: String
 )
 
-private enum class NavIcon { AGENDA, SERVICES, HOURS, REVIEWS, PROFILE }
+private enum class NavIcon { AGENDA, SERVICES, HOURS, REVIEWS, PROFILE, MIS_CITAS }
 
-private val destinations = listOf(
-    MainDestination(
-        "Agenda",
-        NavIcon.AGENDA,
-        "Agenda",
-        "Organiza tus citas y disponibilidad desde aquí."
-    ),
-    MainDestination(
-        "Servicios",
-        NavIcon.SERVICES,
-        "Servicios",
-        "Crea y administra los servicios que ofreces."
-    ),
-    MainDestination(
-        "Horarios",
-        NavIcon.HOURS,
-        "Horarios",
-        "Configura jornadas, descansos y excepciones."
-    ),
-    MainDestination(
-        "Reseñas",
-        NavIcon.REVIEWS,
-        "Reseñas",
-        "Consulta y responde las opiniones de tus clientes."
-    ),
-    MainDestination(
-        "Perfil",
-        NavIcon.PROFILE,
-        "Perfil",
-        "Gestiona tu negocio y preferencias de cuenta."
-    ),
+private val ownerDestinations = listOf(
+    MainDestination("Agenda", NavIcon.AGENDA, "Agenda", "Organiza tus citas y disponibilidad desde aquí."),
+    MainDestination("Servicios", NavIcon.SERVICES, "Servicios", "Crea y administra los servicios que ofreces."),
+    MainDestination("Horarios", NavIcon.HOURS, "Horarios", "Configura jornadas, descansos y excepciones."),
+    MainDestination("Reseñas", NavIcon.REVIEWS, "Reseñas", "Consulta y responde las opiniones de tus clientes."),
+    MainDestination("Perfil", NavIcon.PROFILE, "Perfil", "Gestiona tu negocio y preferencias de cuenta."),
 )
 
+private val employeeDestinations = listOf(
+    MainDestination("Calendario", NavIcon.AGENDA, "Calendario", "Consulta las citas asignadas a tu agenda."),
+    MainDestination("Horarios", NavIcon.HOURS, "Horarios", "Revisa y actualiza tus días de trabajo."),
+    MainDestination("Perfil", NavIcon.PROFILE, "Perfil", "Tus datos, seguridad y preferencias."),
+)
+
+private val clientDestinations = listOf(
+    MainDestination("Calendario", NavIcon.AGENDA, "Calendario", "Revisa tus próximas citas."),
+    MainDestination("Mis citas", NavIcon.MIS_CITAS, "Mis citas", "Consulta y gestiona tus reservas."),
+    MainDestination("Perfil", NavIcon.PROFILE, "Perfil", "Tus datos, seguridad y preferencias."),
+)
+
+private fun destinationsFor(role: UserRole): List<MainDestination> = when (role) {
+    UserRole.OWNER -> ownerDestinations
+    UserRole.EMPLOYEE -> employeeDestinations
+    UserRole.CLIENT -> clientDestinations
+    UserRole.LOADING -> emptyList()
+}
+
 @Composable
-fun MainScreen() {
+fun MainScreen(
+    onOpenBusinessData: () -> Unit = {},
+    onOpenPlan: () -> Unit = {},
+    onOpenTeam: () -> Unit = {},
+    onOpenSecurity: () -> Unit = {},
+    onOpenPersonalData: () -> Unit = {},
+    onOpenHelp: () -> Unit = {},
+    onOpenNotifications: () -> Unit = {},
+    onLogout: () -> Unit = {},
+    sessionViewModel: SessionViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
+    roleViewModel: RoleViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
+) {
     var selectedIndex by rememberSaveable { mutableStateOf(0) }
-    val selected = destinations[selectedIndex]
+    val role by roleViewModel.role.collectAsState()
+    val items = remember(role) { destinationsFor(role) }
 
+    if (role == UserRole.LOADING || items.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) {
+            CircularProgressIndicator(color = Neon)
+        }
+        return
+    }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        MainContent(selected, Modifier.weight(1f))
-        OwnerBottomNav(selectedIndex, onSelected = { selectedIndex = it })
+    LaunchedEffect(role, items.size) {
+        if (selectedIndex !in items.indices) selectedIndex = 0
+    }
+
+    BackHandler(enabled = selectedIndex != 0) {
+        selectedIndex = 0
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        AnimatedContent(
+            targetState = selectedIndex,
+            modifier = Modifier.fillMaxSize(),
+            transitionSpec = {
+                val direction = if (targetState > initialState) 1 else -1
+                (
+                    fadeIn(tween(200)) +
+                        slideInHorizontally(tween(240)) { width -> direction * width / 24 }
+                    ).togetherWith(
+                    fadeOut(tween(140)) +
+                        slideOutHorizontally(tween(180)) { width -> -direction * width / 24 }
+                )
+            },
+            label = "mainContent",
+        ) { index ->
+            MainContent(
+                items[index],
+                Modifier.fillMaxSize(),
+                role = role,
+                onOpenBusinessData = onOpenBusinessData,
+                onOpenPlan = onOpenPlan,
+                onOpenTeam = onOpenTeam,
+                onOpenSecurity = onOpenSecurity,
+                onOpenPersonalData = onOpenPersonalData,
+                onOpenHelp = onOpenHelp,
+                onOpenNotifications = onOpenNotifications,
+                onOpenServices = {
+                    val target = items.indexOfFirst { it.type == NavIcon.SERVICES }
+                    if (target >= 0) selectedIndex = target
+                },
+                onOpenSchedules = {
+                    val target = items.indexOfFirst { it.type == NavIcon.HOURS }
+                    if (target >= 0) selectedIndex = target
+                },
+                onOpenMyAppointments = {
+                    val target = items.indexOfFirst { it.type == NavIcon.MIS_CITAS }
+                    if (target >= 0) selectedIndex = target
+                },
+                onLogout = {
+                    sessionViewModel.clearSession()
+                    onLogout()
+                },
+            )
+        }
+        OwnerBottomNav(
+            items = items,
+            selectedIndex = selectedIndex,
+            onSelected = { selectedIndex = it },
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
     }
 }
 
 
 @Composable
-private fun OwnerBottomNav(selectedIndex: Int, onSelected: (Int) -> Unit) {
+private fun OwnerBottomNav(
+    items: List<MainDestination>,
+    selectedIndex: Int,
+    onSelected: (Int) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val shape = RoundedCornerShape(43.dp)
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .padding(start = 20.dp, end = 20.dp, top = 48.dp, bottom = 30.dp)
             .shadow(14.dp, shape, ambientColor = Color.Black, spotColor = Neon.copy(alpha = .08f))
             .clip(shape)
-            .background(Brush.verticalGradient(listOf(Color(0xB51C3035), Color(0xB5081215))))
+            .background(Brush.verticalGradient(listOf(Color(0xE01C3035), Color(0xE6081215))))
             .border(1.dp, Color(0x42D8F0F5), shape)
             .padding(horizontal = 7.dp, vertical = 4.dp),
     ) {
@@ -118,40 +214,53 @@ private fun OwnerBottomNav(selectedIndex: Int, onSelected: (Int) -> Unit) {
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            destinations.forEachIndexed { index, destination ->
+            items.forEachIndexed { index, destination ->
                 val selected = index == selectedIndex
+                val tint by animateColorAsState(
+                    targetValue = if (selected) Neon else Color(0xFF90A4AA),
+                    animationSpec = tween(180),
+                    label = "navTint",
+                )
+                val labelColor by animateColorAsState(
+                    targetValue = if (selected) Color(0xFFE5FBFF) else Color(0xFF8FA2A8),
+                    animationSpec = tween(180),
+                    label = "navLabel",
+                )
+                val itemBackground by animateColorAsState(
+                    targetValue = if (selected) Color(0x203FE1FF) else Color.Transparent,
+                    animationSpec = tween(200),
+                    label = "navBackground",
+                )
+                val itemBorder by animateColorAsState(
+                    targetValue = if (selected) Neon.copy(alpha = .35f) else Color.Transparent,
+                    animationSpec = tween(200),
+                    label = "navBorder",
+                )
+                val itemScale by animateFloatAsState(
+                    targetValue = if (selected) 1.03f else 1f,
+                    animationSpec = tween(180),
+                    label = "navScale",
+                )
+
                 Column(
                     modifier = Modifier
                         .weight(1f)
+                        .graphicsLayer {
+                            scaleX = itemScale
+                            scaleY = itemScale
+                        }
                         .clip(RoundedCornerShape(22.dp))
-                        .background(
-                            if (selected) Brush.verticalGradient(
-                                listOf(
-                                    Color(0x203FE1FF),
-                                    Color(0x103FE1FF)
-                                )
-                            )
-                            else Brush.verticalGradient(
-                                listOf(
-                                    Color.Transparent,
-                                    Color.Transparent
-                                )
-                            ),
-                        )
-                        .border(
-                            if (selected) 1.dp else 0.dp,
-                            if (selected) Neon.copy(alpha = .35f) else Color.Transparent,
-                            RoundedCornerShape(22.dp)
-                        )
+                        .background(itemBackground, RoundedCornerShape(22.dp))
+                        .border(1.dp, itemBorder, RoundedCornerShape(22.dp))
                         .clickable { onSelected(index) }
                         .padding(top = 6.dp, bottom = 2.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(3.dp),
                 ) {
-                    BottomNavIcon(destination.type, if (selected) Neon else Color(0xFF90A4AA))
+                    BottomNavIcon(destination.type, tint)
                     Text(
                         destination.label,
-                        color = if (selected) Color(0xFFE5FBFF) else Color(0xFF8FA2A8),
+                        color = labelColor,
                         fontSize = 9.sp,
                         fontWeight = if (selected) FontWeight.Bold else FontWeight.SemiBold
                     )
@@ -227,7 +336,7 @@ private fun BottomNavIcon(icon: NavIcon, tint: Color) {
                 )
             }
 
-            NavIcon.HOURS -> {
+            NavIcon.HOURS, NavIcon.MIS_CITAS -> {
                 drawCircle(
                     tint,
                     size.width * .39f,
@@ -293,9 +402,49 @@ private fun BottomNavIcon(icon: NavIcon, tint: Color) {
 }
 
 @Composable
-private fun MainContent(destination: MainDestination, modifier: Modifier = Modifier) {
+private fun MainContent(
+    destination: MainDestination,
+    modifier: Modifier = Modifier,
+    role: UserRole = UserRole.OWNER,
+    onOpenBusinessData: () -> Unit = {},
+    onOpenPlan: () -> Unit = {},
+    onOpenTeam: () -> Unit = {},
+    onOpenSecurity: () -> Unit = {},
+    onOpenPersonalData: () -> Unit = {},
+    onOpenHelp: () -> Unit = {},
+    onOpenNotifications: () -> Unit = {},
+    onOpenServices: () -> Unit = {},
+    onOpenSchedules: () -> Unit = {},
+    onOpenMyAppointments: () -> Unit = {},
+    onLogout: () -> Unit = {},
+) {
     if (destination.type == NavIcon.PROFILE) {
-        Box(modifier = modifier) { ProfileScreen() }
+        Box(modifier = modifier) {
+            ProfileScreen(
+                role = role,
+                onOpenBusinessData = onOpenBusinessData,
+                onOpenServices = onOpenServices,
+                onOpenSchedules = onOpenSchedules,
+                onOpenMyAppointments = onOpenMyAppointments,
+                onOpenPlan = onOpenPlan,
+                onOpenTeam = onOpenTeam,
+                onOpenSecurity = onOpenSecurity,
+                onOpenPersonalData = onOpenPersonalData,
+                onOpenHelp = onOpenHelp,
+                onOpenNotifications = onOpenNotifications,
+                onLogout = onLogout,
+            )
+        }
+        return
+    }
+
+    if (destination.type == NavIcon.HOURS) {
+        Box(modifier = modifier) { SchedulesScreen(onOpenTeam = onOpenTeam) }
+        return
+    }
+
+    if (destination.type == NavIcon.SERVICES) {
+        Box(modifier = modifier) { ServicesScreen() }
         return
     }
     Column(
