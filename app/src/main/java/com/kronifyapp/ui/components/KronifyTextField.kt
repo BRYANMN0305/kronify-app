@@ -1,5 +1,7 @@
 package com.kronifyapp.ui.components
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -59,6 +61,21 @@ fun KronifyTextField(
     val focused by interaction.collectIsFocusedAsState()
     val shape = RoundedCornerShape(14.dp)
     val hasError = !error.isNullOrBlank()
+    val labelColor by animateColorAsState(
+        targetValue = if (hasError) DangerRed else TextTertiary,
+        animationSpec = tween(160),
+        label = "fieldLabelColor",
+    )
+    val borderColor by animateColorAsState(
+        targetValue = if (hasError) DangerRed else if (focused) Neon.copy(alpha = 0.5f) else StrokeSubtle,
+        animationSpec = tween(160),
+        label = "fieldBorderColor",
+    )
+    val fieldBackground by animateColorAsState(
+        targetValue = if (focused) FieldFocused else FieldIdle,
+        animationSpec = tween(160),
+        label = "fieldBackground",
+    )
 
     Column(modifier) {
         Text(
@@ -66,7 +83,7 @@ fun KronifyTextField(
             fontSize = 11.5.sp,
             fontWeight = FontWeight.SemiBold,
             letterSpacing = 0.3.sp,
-            color = if (hasError) DangerRed else TextTertiary,
+            color = labelColor,
         )
         Box(
             modifier = Modifier
@@ -74,10 +91,10 @@ fun KronifyTextField(
                 .fillMaxWidth()
                 .height(50.dp)
                 .clip(shape)
-                .background(if (focused) FieldFocused else FieldIdle)
+                .background(fieldBackground)
                 .border(
                     width = 1.dp,
-                    color = if (hasError) DangerRed else if (focused) Neon.copy(alpha = 0.5f) else StrokeSubtle,
+                    color = borderColor,
                     shape = shape,
                 ),
             contentAlignment = Alignment.CenterStart,

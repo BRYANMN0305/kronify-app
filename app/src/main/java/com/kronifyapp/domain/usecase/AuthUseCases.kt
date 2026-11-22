@@ -14,6 +14,10 @@ class RegisterUseCase(private val repository: AuthRepository) {
     suspend operator fun invoke(registration: Registration) = repository.register(registration)
 }
 
+class SelectOAuthProfileUseCase(private val repository: AuthRepository) {
+    suspend operator fun invoke(token: String, profileType: String) = repository.selectOAuthProfile(token, profileType)
+}
+
 class CreateBusinessUseCase(private val repository: AuthRepository) {
     suspend operator fun invoke(token: String, business: BusinessInput) = repository.createBusiness(token, business)
 }

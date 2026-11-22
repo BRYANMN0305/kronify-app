@@ -39,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.foundation.Image
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
@@ -60,6 +61,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kronifyapp.ui.components.AuroraBackground
+import com.kronifyapp.ui.components.AnimatedStatusMessage
 import com.kronifyapp.ui.components.ClockGlyph
 import com.kronifyapp.ui.components.PrimaryButton
 import com.kronifyapp.ui.theme.Acero1
@@ -71,6 +73,7 @@ import com.kronifyapp.ui.theme.TextPrimary
 import com.kronifyapp.ui.theme.TextSecondary
 import com.kronifyapp.ui.theme.TextTertiary
 import kotlinx.coroutines.launch
+import com.kronifyapp.domain.model.OpeningHour
 
 @Composable
 fun OnboardingStep2Screen(
@@ -122,6 +125,14 @@ fun OnboardingStep2Screen(
 
     var editingDay by remember { mutableStateOf<String?>(null) }
     var tempTimeRange by rememberSaveable { mutableStateOf("") }
+    var hoursError by rememberSaveable { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(state.openingHoursSaved) {
+        if (state.openingHoursSaved) {
+            viewModel.consumeOpeningHoursSaved()
+            onFinish(token, userId)
+        }
+    }
 
     var editingBreak by remember { mutableStateOf(false) }
     var tempBreakTime by rememberSaveable { mutableStateOf("14:00 – 15:30") }
@@ -336,6 +347,7 @@ fun OnboardingStep2Screen(
                                         .background(if (isOn) Neon else Color(0x33D5F0F7))
                                         .clickable {
                                             daysState[day] = timeStr to !isOn
+                                            hoursError = null
                                         }
                                         .padding(2.dp),
                                     contentAlignment = if (isOn) Alignment.CenterEnd else Alignment.CenterStart,
@@ -397,10 +409,51 @@ fun OnboardingStep2Screen(
                     PrimaryButton(
                         text = "Continuar",
                         onClick = {
-                            viewModel.advanceOnboarding(userId, 3)
-                            onFinish(token, userId)
+                            val dayNumbers = mapOf(
+                                "Lun" to 1,
+                                "Mar" to 2,
+                                "Mié" to 3,
+                                "Jue" to 4,
+                                "Vie" to 5,
+                                "Sáb" to 6,
+                                "Dom" to 7,
+                            )
+                            val timeRegex = Regex("(\\d{1,2}:\\d{2})\\s*[—–-]\\s*(\\d{1,2}:\\d{2})")
+                            val invalidDay = daysState.entries.firstOrNull {
+                                it.value.second && timeRegex.find(it.value.first) == null
+                            }
+                            val hours = daysState.mapNotNull { (label, value) ->
+                                if (!value.second) return@mapNotNull null
+                                val match = timeRegex.find(value.first) ?: return@mapNotNull null
+                                val day = dayNumbers[label] ?: return@mapNotNull null
+                                OpeningHour(
+                                    dayOfWeek = day,
+                                    startTime = match.groupValues[1],
+                                    endTime = match.groupValues[2],
+                                )
+                            }
+
+                            when {
+                                invalidDay != null -> {
+                                    hoursError = "Revisa el horario de ${invalidDay.key}."
+                                }
+                                hours.isEmpty() -> {
+                                    hoursError = "Configura al menos un día de atención."
+                                }
+                                else -> {
+                                    hoursError = null
+                                    viewModel.saveOpeningHours(
+                                        userId = userId,
+                                        token = token.ifBlank { state.token.orEmpty() },
+                                        hours = hours,
+                                    )
+                                }
+                            }
                         },
                     )
+
+                    AnimatedStatusMessage(text = hoursError, isError = true)
+                    AnimatedStatusMessage(text = state.error, isError = true)
 
                     Text(
                         text = "Podrás ajustar días, descansos y excepciones en Horarios.",
@@ -435,6 +488,7 @@ fun OnboardingStep2Screen(
                             editingDay?.let { day ->
                                 val currentIsOn = daysState[day]?.second ?: true
                                 daysState[day] = tempTimeRange to currentIsOn
+                                hoursError = null
                             }
                             editingDay = null
                             notify("Horario actualizado")

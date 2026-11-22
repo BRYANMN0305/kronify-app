@@ -9,6 +9,7 @@ import com.kronifyapp.domain.model.LogoImage
 interface AuthRepository {
     suspend fun login(credentials: LoginCredentials): AuthSession
     suspend fun register(registration: Registration): AuthSession
+    suspend fun selectOAuthProfile(token: String, profileType: String): AuthSession
     suspend fun createBusiness(token: String, business: BusinessInput)
     suspend fun uploadBusinessLogo(token: String, logo: LogoImage)
 }
