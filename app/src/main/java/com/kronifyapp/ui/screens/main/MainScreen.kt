@@ -61,6 +61,8 @@ import com.kronifyapp.ui.theme.TextTertiary
 import com.kronifyapp.ui.screens.profile.ProfileScreen
 import com.kronifyapp.ui.screens.schedule.SchedulesScreen
 import com.kronifyapp.ui.screens.services.ServicesScreen
+import com.kronifyapp.ui.screens.calendar.CalendarScreen
+import com.kronifyapp.ui.screens.reviews.ReviewsScreen
 import com.kronifyapp.ui.state.UserRole
 import com.kronifyapp.ui.viewModel.RoleViewModel
 import com.kronifyapp.ui.viewModel.SessionViewModel
@@ -445,6 +447,14 @@ private fun MainContent(
 
     if (destination.type == NavIcon.SERVICES) {
         Box(modifier = modifier) { ServicesScreen() }
+        return
+    }
+    if (destination.type == NavIcon.AGENDA || destination.type == NavIcon.MIS_CITAS) {
+        Box(modifier = modifier) { CalendarScreen() }
+        return
+    }
+    if (destination.type == NavIcon.REVIEWS) {
+        Box(modifier = modifier) { ReviewsScreen() }
         return
     }
     Column(

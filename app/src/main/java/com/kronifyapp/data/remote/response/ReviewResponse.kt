@@ -6,4 +6,5 @@ data class ReviewResponse(
     val comment: String? = null,
     val visible: Boolean = true,
     val createdAt: String? = null,
+    val customerName: String? = null,
 )
