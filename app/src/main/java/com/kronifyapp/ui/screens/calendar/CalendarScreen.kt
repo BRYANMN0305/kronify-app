@@ -13,7 +13,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -22,6 +25,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -42,6 +46,7 @@ import com.kronifyapp.ui.theme.StrokeSubtle
 import com.kronifyapp.ui.theme.TextPrimary
 import com.kronifyapp.ui.theme.TextSecondary
 import com.kronifyapp.ui.theme.TextTertiary
+import com.kronifyapp.ui.state.UserRole
 import com.kronifyapp.ui.viewModel.CalendarViewModel
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -51,9 +56,14 @@ private val calendarSurface = Color(0xFF0E2025)
 private val calendarHeader = Color(0xFF1D3C46)
 
 @Composable
-fun CalendarScreen(viewModel: CalendarViewModel = androidx.hilt.navigation.compose.hiltViewModel()) {
+fun CalendarScreen(
+    role: UserRole = UserRole.OWNER,
+    viewModel: CalendarViewModel = androidx.hilt.navigation.compose.hiltViewModel(),
+) {
     val state by viewModel.uiState.collectAsState()
     val locale = Locale("es", "CO")
+    val isClient = role == UserRole.CLIENT
+    LaunchedEffect(role) { viewModel.configureRole(role) }
     val filtered = state.appointments.filter { appointment ->
         (state.selectedEmployee == "Todos los empleados" || appointment.employeeName == state.selectedEmployee) &&
             (state.selectedService == "Todos los servicios" || appointment.serviceName == state.selectedService) &&
@@ -63,10 +73,21 @@ fun CalendarScreen(viewModel: CalendarViewModel = androidx.hilt.navigation.compo
     val noAppointments = filtered.isEmpty()
 
     AuroraBackground {
-        Column(Modifier.fillMaxSize().padding(horizontal = 18.dp, vertical = 18.dp)) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .padding(start = 18.dp, end = 18.dp, top = 14.dp, bottom = 92.dp),
+        ) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column {
-                    Text("CALENDARIO OPERATIVO", color = Neon, fontSize = 10.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.3.sp)
+                    Text(
+                        if (isClient) "TU CALENDARIO" else "CALENDARIO OPERATIVO",
+                        color = Neon,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.3.sp,
+                    )
                     Text("Calendario", color = TextPrimary, fontSize = 27.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 5.dp))
                 }
             }
@@ -79,20 +100,30 @@ fun CalendarScreen(viewModel: CalendarViewModel = androidx.hilt.navigation.compo
                 }
             }
 
-            Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterMenu(state.selectedEmployee, listOf("Todos los empleados") + state.employees.filter { it.active }.map { it.fullName }, viewModel::selectEmployee)
-                FilterMenu(state.selectedService, listOf("Todos los servicios") + state.services.filter { it.active }.map { it.name }, viewModel::selectService)
-                FilterMenu(state.selectedStatus, listOf("Todos los estados", "PENDING", "CONFIRMED", "CANCELLED", "COMPLETED"), viewModel::selectStatus)
+            if (!isClient) {
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterMenu(state.selectedEmployee, listOf("Todos los empleados") + state.employees.filter { it.active }.map { it.fullName }, viewModel::selectEmployee)
+                    FilterMenu(state.selectedService, listOf("Todos los servicios") + state.services.filter { it.active }.map { it.name }, viewModel::selectService)
+                    FilterMenu(state.selectedStatus, listOf("Todos los estados", "PENDING", "CONFIRMED", "CANCELLED", "COMPLETED"), viewModel::selectStatus)
+                }
             }
 
             if (noAppointments && !state.isLoading && state.error == null) {
-                Text("No hay citas en este rango. Prueba cambiando de mes o quitando filtros.", color = TextTertiary, fontSize = 12.sp, lineHeight = 18.sp,
+                Text(
+                    if (isClient) "No tienes citas agendadas este mes."
+                    else "No hay citas en este rango. Prueba cambiando de mes o quitando filtros.",
+                    color = TextTertiary,
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp,
                     modifier = Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 13.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF102329)).border(1.dp, StrokeSubtle, RoundedCornerShape(10.dp)).padding(horizontal = 13.dp, vertical = 12.dp))
             } else Spacer(Modifier.height(13.dp))
 
+            if (state.error != null && !state.isLoading) {
+                Text(state.error.orEmpty(), color = TextTertiary, fontSize = 12.sp, lineHeight = 18.sp,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF102329)).border(1.dp, StrokeSubtle, RoundedCornerShape(10.dp)).padding(12.dp))
+            }
             when {
                 state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator(color = Neon) }
-                state.error != null -> Text(state.error.orEmpty(), color = TextTertiary, modifier = Modifier.padding(top = 18.dp))
                 else -> MonthlyGrid(
                     month = state.month,
                     days = days,
@@ -159,10 +190,7 @@ private fun calendarDays(month: LocalDate): List<LocalDate?> {
     val mondayOffset = first.dayOfWeek.value - 1
     val cells = ((mondayOffset + month.lengthOfMonth() + 6) / 7) * 7
     val gridStart = first.minusDays(mondayOffset.toLong())
-    return (0 until cells).map { index ->
-        val date = gridStart.plusDays(index.toLong())
-        date.takeIf { it.month == month.month }
-    }
+    return (0 until cells).map { index -> gridStart.plusDays(index.toLong()) }
 }
 
 private fun time(value: String): String = value.substringAfter('T', "--:--").take(5)

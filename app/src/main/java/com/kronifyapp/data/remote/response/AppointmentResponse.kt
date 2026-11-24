@@ -18,3 +18,21 @@ data class AppointmentResponse(
     val origin: String = "",
     val createdAt: String? = null,
 )
+
+data class PageAppointmentResponse(
+    val content: List<AppointmentResponse> = emptyList(),
+    val totalElements: Long = 0L,
+    val totalPages: Int = 0,
+    val number: Int = 0,
+    val size: Int = 0,
+)
+
+data class RecentBusinessResponse(
+    val businessId: Long = 0L,
+    val name: String = "",
+    val slug: String = "",
+    val logoUrl: String? = null,
+    val category: String? = null,
+    val address: String? = null,
+    val lastAppointmentAt: String? = null,
+)

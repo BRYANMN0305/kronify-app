@@ -24,6 +24,8 @@ import com.kronifyapp.domain.usecase.GetAvailablePlansUseCase
 import com.kronifyapp.domain.usecase.GetBusinessRatingUseCase
 import com.kronifyapp.domain.usecase.GetBusinessReviewsUseCase
 import com.kronifyapp.domain.usecase.GetBusinessAgendaUseCase
+import com.kronifyapp.domain.usecase.GetClientAppointmentHistoryUseCase
+import com.kronifyapp.domain.usecase.GetRecentBusinessesUseCase
 import com.kronifyapp.domain.usecase.GetBusinessUseCase
 import com.kronifyapp.domain.usecase.GetCurrentPlanUseCase
 import com.kronifyapp.domain.usecase.GetMyEmployeeUseCase
@@ -86,6 +88,8 @@ object UseCaseModule {
     @Provides fun provideGetBusinessRatingUseCase(repository: ReviewRepository) = GetBusinessRatingUseCase(repository)
     @Provides fun provideGetBusinessReviewsUseCase(repository: ReviewRepository) = GetBusinessReviewsUseCase(repository)
     @Provides fun provideGetBusinessAgendaUseCase(repository: AppointmentRepository) = GetBusinessAgendaUseCase(repository)
+    @Provides fun provideGetClientAppointmentHistoryUseCase(repository: AppointmentRepository) = GetClientAppointmentHistoryUseCase(repository)
+    @Provides fun provideGetRecentBusinessesUseCase(repository: AppointmentRepository) = GetRecentBusinessesUseCase(repository)
     @Provides fun provideListServicesUseCase(repository: ServiceRepository) = ListServicesUseCase(repository)
     @Provides fun provideCreateServiceUseCase(repository: ServiceRepository) = CreateServiceUseCase(repository)
     @Provides fun provideUpdateServiceUseCase(repository: ServiceRepository) = UpdateServiceUseCase(repository)
