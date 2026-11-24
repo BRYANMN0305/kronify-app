@@ -22,6 +22,7 @@ import com.kronifyapp.domain.usecase.DeleteWeeklyScheduleUseCase
 import com.kronifyapp.domain.usecase.GetAuthMethodsUseCase
 import com.kronifyapp.domain.usecase.GetAvailablePlansUseCase
 import com.kronifyapp.domain.usecase.GetBusinessRatingUseCase
+import com.kronifyapp.domain.usecase.GetBusinessReviewsUseCase
 import com.kronifyapp.domain.usecase.GetBusinessAgendaUseCase
 import com.kronifyapp.domain.usecase.GetBusinessUseCase
 import com.kronifyapp.domain.usecase.GetCurrentPlanUseCase
@@ -83,6 +84,7 @@ object UseCaseModule {
     @Provides fun provideChangePasswordUseCase(repository: UserRepository) = ChangePasswordUseCase(repository)
     @Provides fun provideGetAuthMethodsUseCase(repository: UserRepository) = GetAuthMethodsUseCase(repository)
     @Provides fun provideGetBusinessRatingUseCase(repository: ReviewRepository) = GetBusinessRatingUseCase(repository)
+    @Provides fun provideGetBusinessReviewsUseCase(repository: ReviewRepository) = GetBusinessReviewsUseCase(repository)
     @Provides fun provideGetBusinessAgendaUseCase(repository: AppointmentRepository) = GetBusinessAgendaUseCase(repository)
     @Provides fun provideListServicesUseCase(repository: ServiceRepository) = ListServicesUseCase(repository)
     @Provides fun provideCreateServiceUseCase(repository: ServiceRepository) = CreateServiceUseCase(repository)

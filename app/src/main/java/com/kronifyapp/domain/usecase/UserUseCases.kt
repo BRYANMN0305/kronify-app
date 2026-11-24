@@ -24,3 +24,7 @@ class GetAuthMethodsUseCase(private val repository: UserRepository) {
 class GetBusinessRatingUseCase(private val repository: ReviewRepository) {
     suspend operator fun invoke(slug: String) = repository.getBusinessRating(slug)
 }
+
+class GetBusinessReviewsUseCase(private val repository: ReviewRepository) {
+    suspend operator fun invoke(slug: String) = repository.getBusinessReviews(slug)
+}

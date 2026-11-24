@@ -23,3 +23,11 @@ data class BusinessUpdate(
     val phoneNumber: String,
     val whatsApp: String,
 )
+
+data class BusinessReview(
+    val reviewId: Long,
+    val rating: Int,
+    val comment: String?,
+    val createdAt: String?,
+    val customerName: String?,
+)
