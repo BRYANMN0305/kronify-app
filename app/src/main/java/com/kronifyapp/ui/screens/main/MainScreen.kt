@@ -63,6 +63,7 @@ import com.kronifyapp.ui.screens.schedule.SchedulesScreen
 import com.kronifyapp.ui.screens.services.ServicesScreen
 import com.kronifyapp.ui.screens.calendar.CalendarScreen
 import com.kronifyapp.ui.screens.reviews.ReviewsScreen
+import com.kronifyapp.ui.screens.client.ClientAppointmentsScreen
 import com.kronifyapp.ui.state.UserRole
 import com.kronifyapp.ui.viewModel.RoleViewModel
 import com.kronifyapp.ui.viewModel.SessionViewModel
@@ -449,8 +450,12 @@ private fun MainContent(
         Box(modifier = modifier) { ServicesScreen() }
         return
     }
-    if (destination.type == NavIcon.AGENDA || destination.type == NavIcon.MIS_CITAS) {
-        Box(modifier = modifier) { CalendarScreen() }
+    if (destination.type == NavIcon.AGENDA) {
+        Box(modifier = modifier) { CalendarScreen(role = role) }
+        return
+    }
+    if (destination.type == NavIcon.MIS_CITAS) {
+        Box(modifier = modifier) { ClientAppointmentsScreen() }
         return
     }
     if (destination.type == NavIcon.REVIEWS) {

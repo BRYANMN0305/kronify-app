@@ -41,15 +41,11 @@ class RoleViewModel @Inject constructor(
 
         val profileType = sessionStore.profileType
 
-        // Un usuario invitado a un equipo conserva el perfil CLIENT en el JWT,
-        // pero también tiene registro de empleado. En ese caso debe entrar
-        // como empleado y no como cliente.
+        // El tipo de perfil elegido al crear la cuenta es la fuente principal
+        // del rol. No inferimos EMPLOYEE solo porque el endpoint de empleado
+        // responda para una cuenta que se registró como CLIENT.
         if (profileType == "CLIENT") {
             _role.value = UserRole.CLIENT
-            viewModelScope.launch {
-                val isEmployee = runCatching { getMyEmployeeUseCase(token) }.isSuccess
-                if (isEmployee) _role.value = UserRole.EMPLOYEE
-            }
             return
         }
 

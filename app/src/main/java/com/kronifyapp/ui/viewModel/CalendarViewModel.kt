@@ -7,6 +7,7 @@ import com.kronifyapp.domain.usecase.ListEmployeesUseCase
 import com.kronifyapp.domain.usecase.ListServicesUseCase
 import com.kronifyapp.domain.usecase.GetBusinessAgendaUseCase
 import com.kronifyapp.ui.state.CalendarUiState
+import com.kronifyapp.ui.state.UserRole
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.LocalDate
 import javax.inject.Inject
@@ -25,9 +26,13 @@ class CalendarViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(CalendarUiState())
     val uiState = _uiState.asStateFlow()
 
-    init {
+    private var configuredRole: UserRole? = null
+
+    fun configureRole(role: UserRole) {
+        if (configuredRole == role) return
+        configuredRole = role
         loadMonth(_uiState.value.month)
-        loadFilters()
+        if (role != UserRole.CLIENT) loadFilters()
     }
 
     private fun loadFilters() {
